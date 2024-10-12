@@ -1,0 +1,261 @@
+---
+title: "Data Visualization Portfolio"
+author: "D'Angelo Francis"
+format: html
+embed-resources: true
+code-fold: true
+code-line-numbers: true
+code-copy: true
+lightbox: true
+---
+
+```{r setup}
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(fontawesome) # install.packages("fontawesome") - for waffle graphs
+library(styler) # install.packages("styler") - check for Tidy style guide adherence
+library(lintr) # install.packages("lintr") - check for Tidy style guide adherence
+library(tidyverse)
+library(readxl)
+library(haven)
+library(tidyverse)
+library(patchwork) # easy combine plots
+library(tigris) # direct download of shape files from US Cenus 
+library(sf) # manipulate shapefiles 
+library(tidycensus) # shapefiles from Census 
+library(rgeoboundaries) # international boundaries 
+library(ggrepel)  # install.packages("ggrepel")
+library(janitor)  # install.packages("janitor")
+library(ggthemes) # install.packages("ggthemes")
+library(crsuggest) # install.packages("crsuggest")
+```
+
+## Visualization 1 - Broadband Infrastructure and Foreign Direct Investment in the Carribean
+
+### Purpose
+
+The purpose of this visualization is to demonstrate the benefit of net foreign direct investment (FDI) in expanding access to broadband internet in the Caribbean. Specifically, I am exploring the relationship between FDI net inflow and broadband access[^1] from  2013-2023 with respect to the World Bank's definition of Caribbean Small States and Hispaniola (Haiti and the Dominican Republic.[^2]
+
+I have omitted larger Caribbean states such as Jamaica and Cuba as well as non-sovereign overseas territories and provinces due to extreme outliers. I have also omitted some points due to overlap, as some years had extremely similar yearly FDI inflow values. I do not expect these adjustments to misrepresent the data. Importantly, I want the end user to observe the stark difference between Haiti and the Dominican Republic despite being neighbors on the same island.  
+
+[^1]: Fixed broadband subscriptions refers to fixed subscriptions to high-speed access to the public Internet downstream speeds equal to, or greater than, 256 kbit/s. This includes cable modem, DSL, fiber-to-the-home/building, other fixed (wired)-broadband subscriptions, satellite broadband and terrestrial fixed wireless broadband. It *excludes* subscriptions that have access to data communications via mobile-cellular networks.
+
+[^2]:The Caribbean Small States are Antigua and Barbuda, The Bahamas, Barbados, Belize, Dominica, Grenada, Guyana, St. Kitts and Nevis, St. Lucia, St. Vincent and the Grenadines, and Suriname.
+
+
+
+```{r visualization 1}
+#| warning: false
+#| message: false
+#| fig-width: 11
+#| fig-height: 8.5
+
+## Visualization 1: 
+
+# import and clean data, continue to 'tidy' data to 4 variable categories  
+
+broadband <- 
+  read_excel("data/Fixed broadband subscriptions (per 100 people).xlsx")|>
+  pivot_longer(
+    cols = 3:28, # what I'm pivoting
+    names_to = "year", # the new column for what I'm pivoting
+    values_to = "access" # where column values go
+  ) |> 
+  rename(
+    code = `Country Code`, # for easy variable calling later on
+    name = `Country Name`
+  ) |> 
+  remove_missing()
+
+# bring in FDI data 
+
+fdi_inflow <- 
+  read_excel("data/Foreign direct investment^J net inflows (BoP^J current US$).xlsx") |>
+  pivot_longer(
+    cols = 3:56,
+    names_to = "year",
+    values_to = "fdi"
+  ) |> 
+  rename(
+    code = `Country Code`,
+    name = `Country Name`
+  ) |> 
+  remove_missing() |> 
+  mutate(fdi = fdi/100000000)
+
+# join fdi and broadband data for easy use 
+
+broadband_fdi_inflow <- 
+  right_join(broadband, y = fdi_inflow, by = join_by(name, code, year))
+
+# filter year to 1998 for broadband 
+
+broadband_fdi_inflow98 <- 
+  broadband_fdi_inflow |>
+  filter(year %in% c("1998":"2023"))
+
+# choose countries of interest - I want to focus on Caribbean 
+
+broadfdi_Carib98 <- 
+  broadband_fdi_inflow98 |>  
+  filter(code %in% c("ABW","ATG","BHS","BMU","BRB", "CSS", "CUB", "CUW","CYM", "DMA", "DOM", "GRD", "HTI", "JAM", "KNA", "LCN", "LCA", "NAC", "PRI", "TCA","VCT","VGB","VIR"))
+
+# Narrowing time frame to 2013 - 2023 
+
+broadfdi_Carib2013 <- 
+  broadfdi_Carib98|>  
+  filter(year %in% c("2013":"2023"))
+         
+# select country of interest ; color thru vars must be passed through aes *duh*
+
+# to-do Wednesday and Thursday: refine legend and annotations.
+
+haiti_dom_plot <- # this is the 'base' plot
+  broadfdi_Carib2013 |>
+  filter(code %in% c("CSS","DOM","HTI")) |>
+  ggplot(aes(x = fdi, y = access, label = year, color = code)) + 
+  geom_point(position = "jitter") + 
+  scale_color_manual(name = "Country/Region",
+                     values = c(CSS = "maroon", DOM = "#002D62", HTI = "#016a16"),
+                                labels = c(CSS = "Caribbean Small States",
+                                           DOM = "Dominican Republic",
+                                           HTI = "Haiti")) + # custom color
+  geom_text_repel(show.legend = FALSE, max.overlaps = 20) +
+  theme_minimal() + 
+  labs(
+    title = "Foreign Direct Investment Net Inflow and its impact on \n Broadband Access:",
+    subtitle = str_wrap("The positive relationship between FDI and increasing access to Broadband in Hispaniola and small Caribbean States"),
+    caption = strwrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data")
+  ) + 
+  xlab("Foreign Direct Investment Net Inflows (US$ per $100 million)") +
+  ylab("Broadband Access (per 100 people)")
+
+haiti_dom_plot
+```
+
+
+## Visualization 2 - Japan's railroad infrastructure and its relationship with Gross Regional Domestic Product (GRDP)
+
+### Purpose 
+
+The purpose behind this visualization cis to emphasis how railroad investment contributes to economic success. Japan has an extensive network of both private and government-owned railroads[^3] that efficiently ships foreign imports from the major ports of Japan and ferry commuters between the office and their home. Japan's high-speed rail system—the *shinkansen*, is vaunted for its ability to travel between major cities while maintaining superb passenger comfort and boosting regional economic growth.[^4]
+
+
+[^3]: Japan Private Railway Association, [*Introduction of Private Railway Companies*](https://www.mintetsu.or.jp/en/index.html)
+
+[^4]: Government of Japan, [*The Shinkansen, Japan's High-Speed Rail, Is Full of Miracles*](https://www.japan.go.jp/tomodachi/2014/autumn2014/the_shinkansen_japans_high-speed_rail.html)
+
+
+```{r visualization 2}
+#| message: false
+#| warning: false
+#| fig-width: 11
+#| fig-height: 8.5
+
+# load japan geofile in 
+
+japan <- 
+  gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures)
+
+# load rail data in
+
+japan_rail <- 
+  read_sf("data/Japan_railroads.geojson") |> # read in railroad map
+  clean_names() |>
+  rename(rail_type = exs_descri) |>
+  rename(func = fco_descri) |>
+  filter(func != "Unknown")
+
+# load in major city data 
+
+japan_cities <-
+  read_sf("data/cities.geojson") |>
+  clean_names() |>
+  rename(country = ctry) |> 
+  filter(country == "Japan" & pop > 2500000)
+  
+
+
+# load 2019 GDP in, rename columns for data join and obs to match geodata 
+
+japan_gdp2019 <- 
+  read_excel("data/Japanese Prefectures by GDP - 2019.xlsx") |>
+  clean_names() # using janitor package
+  
+japan_gdp2019 <-
+  japan_gdp2019 |>
+  rename(gdp_yen = x2019_gdp_in_millions_of_jp) |>
+  rename(gdp_usd = x2019_gdp_in_millions_of_us) |>
+  rename(shapeName = prefecture) |>
+  rename(gdp_share = share_of_japan_gdp_percent) |>
+  mutate(shapeName = case_when(
+    shapeName == "Aichi" ~ "Aichi Prefecture", 
+    shapeName =="Ehime" ~ "Ehime Prefecture",
+    shapeName == "Fukui" ~ "Fukui Prefecture",
+    shapeName == "Fukuoka" ~ "Fukuoka Prefecture",
+    shapeName ==  "Gifu" ~ "Gifu Prefecture",
+    shapeName ==  "Hyogo" ~ "Hyogo Prefecture",
+    shapeName ==  "Ishikawa" ~ "Ishikawa Prefecture",
+    shapeName ==  "Kagawa" ~ "Kagawa Prefecture",
+    shapeName ==  "Kagoshima" ~ "Kagoshima Prefecture",
+    shapeName ==  "Kochi" ~ "Kochi Prefecture",
+    shapeName ==  "Kyoto" ~ "Kyoto Prefecture",
+    shapeName ==  "Mie" ~ "Mie Prefecture",
+    shapeName ==  "Miyazaki" ~ "Miyazaki Prefecture",
+    shapeName ==  "Nagasaki" ~ "Nagasaki Prefecture",
+    shapeName ==  "Nara" ~ "Nara Prefecture",
+    shapeName ==  "Okayama" ~ "Okayama Prefecture",
+    shapeName ==  "Okinawa" ~ "Okinawa Prefecture",
+    shapeName ==  "Osaka" ~ "Osaka Prefecture",
+    shapeName ==  "Saga" ~ "Saga Prefecture",
+    shapeName ==  "Tokushima" ~ "Tokushima Prefecture",
+    shapeName ==  "Tottori" ~ "Tottori Prefecture",
+    shapeName ==  "Wakayama" ~ "Wakayama Prefecture",
+    .default = as.character(shapeName)
+  ))
+  
+
+# combine gdp with geodata - should have 47 obs for each data frame
+
+japan_gdpjoin <- 
+  full_join(japan_gdp2019, japan, by = join_by("shapeName"))|>
+   st_as_sf()
+
+japan_plot <- 
+  filter(.data = japan_rail, rail_type == "Operational") |>
+  ggplot() + 
+  geom_sf(data = japan_gdpjoin, aes(fill = as.numeric(gdp_share))) +
+  scale_fill_gradient(name = "Percent of GDP Share (2019)",
+                      low = "#FFFFF0",
+                      high = "#BC002D") + 
+  geom_sf(data = japan_rail,linewidth = .1, color = "steelblue") +
+  geom_sf(data = japan_cities) + 
+  geom_label_repel(data = japan_cities, 
+                   aes(label = name, geometry = geometry), 
+                   stat = "sf_coordinates", 
+                   label.size = .15, 
+                   box.padding = .15, 
+                   label.padding = .15, 
+                   min.segment.length = 2) + # use this for sf label overlaps 
+  theme(
+    panel.background = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  ) + 
+  labs(
+    title = "The Relationship between GDP Share and Railroad Infrastructure in Japan",
+    subtitle = "A Prefecture's railroad density can serve as an indicator for national GDP contributions",
+    caption = str_wrap("Source: 2020 National Accounts, Economic and Social Research Institute of Japan; \n geoBoundaries R package; IMB GIS, Cities ; ArcGIS Hub, Japan Railroads"
+    )
+  )
+
+japan_plot 
+
+```
+
+
+
