@@ -140,7 +140,7 @@ haiti_dom_plot
 
 ### Purpose 
 
-The purpose behind this visualization cis to emphasis how railroad investment contributes to economic success. Japan has an extensive network of both private and government-owned railroads[^3] that efficiently ships foreign imports from the major ports of Japan and ferry commuters between the office and their home. Japan's high-speed rail system—the *shinkansen*, is vaunted for its ability to travel between major cities while maintaining superb passenger comfort and boosting regional economic growth.[^4]
+The purpose behind this visualization is to emphasis how railroad investment contributes to economic success. Japan has an extensive network of both private and government-owned railroads[^3] that efficiently ships foreign imports from the major ports of Japan and ferry commuters between the office and their home. Japan's high-speed rail system—the *shinkansen*, is vaunted for its ability to travel between major cities while maintaining superb passenger comfort and boosting regional economic growth.[^4]
 
 
 [^3]: Japan Private Railway Association, [*Introduction of Private Railway Companies*](https://www.mintetsu.or.jp/en/index.html)
