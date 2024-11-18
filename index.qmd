@@ -15,20 +15,35 @@ fig-height: 8.5
 #| warning: false
 #| message: false
 
+# core packages
+
 library(tidyverse)
-library(fontawesome) # install.packages("fontawesome") - for waffle graphs
 library(readxl)
 library(haven)
+library(tidycensus) # US Census data API
+library(janitor)  # install.packages("janitor")
+library(lubridate)
+library(tidymodels)
+library(httr2)
+library(jsonlite)
+library(wbstats) # world bank api
+
+# visualization packages
+
+library(waffle) # install.packages("waffle")
+library(fontawesome) # install.packages("fontawesome") - for waffle graphs glyphs
 library(patchwork) # easy combine plots
-library(tigris) # direct download of shape files from US Cenus 
+library(tigris) # direct download of shape files from US Census 
 library(sf) # manipulate shapefiles 
-library(tidycensus) # shapefiles from Census 
 library(rgeoboundaries) # international boundaries 
 library(ggrepel)  # install.packages("ggrepel")
-library(janitor)  # install.packages("janitor")
 library(ggthemes) # install.packages("ggthemes")
 library(crsuggest) # install.packages("crsuggest")
-library(ggarchery) # install.packages("ggarchery")
+library(ggarchery) # install.packages("ggarchery") for easy arrows
+
+
+
+options(scipen = 999)
 ```
 
 ## Visualization 1 - Broadband Infrastructure and Foreign Direct Investment in the Carribean
@@ -415,5 +430,186 @@ public_ridership_fares |>
 
 ggsave("transitdebt.pdf", width = 11, height = 8.5)
 
+
+```
+
+## Vizualization 5
+
+### Purpose 
+
+The purpose of this visualization is to explore the spatial economics of China's Special Economic Zones or SEZs. These areas benefit from relaxed regulation and government assistance in the form of subsides, tax breaks, or even direct intervention.[^6]
+
+[^6]: Zeng, D.;*China’s Special Economic Zones and Industrial Clusters: Success and Challenges*; Lincoln Institute of Land Policy 2012
+
+\pagebreak
+
+```{r}
+#| label: original code for viz 1
+
+china <- 
+  geoboundaries(country = "China", adm_lvl = 1) |> 
+  filter(!shapeName == "Taiwan Province") |> 
+  st_as_sf(crs = 4584)
+
+cities <- 
+  read_sf("data/cities.geojson") |> 
+  clean_names() |> 
+  select(!1:6)
+
+china_cities <- 
+  cities |> 
+  filter(ctry == "China") |>
+  rename(city_name = name) |> 
+  select(city_name,pop,lat,lon,geometry)|> 
+  mutate(sez = if_else(city_name %in% c("Shenzhen",
+                                        "Xiamen",
+                                        "Hainan",
+                                        "Zhuhai",
+                                        "Shantou",
+                                        "Shanghai",
+                                        "Tianjin"),
+                       true = 1, false = 0))
+
+china_sez_cities <- 
+  china_cities |>
+  filter(sez == 1 | city_name == "Beijing")
+
+china_gdp_province <- 
+  read_xlsx("data/gross-domestic-product--gdp--of-china-2023-by-region.xlsx") |>
+  clean_names() |> 
+  mutate(province = case_when(
+    province == "Anhui" ~ "Anhui Province",
+    province == "Beijing" ~ "Beijing Municipality",
+    province == "Chongqing" ~ "Chongqing Municipality",
+    province == "Fujian" ~ "Fujian Province",
+    province == "Gansu" ~ "Gansu Province",
+    province == "Guangdong" ~ "Guangzhou Province",
+    province == "Guangxi" ~ "Guangxi Zhuang Autonomous Region",
+    province == "Guizhou" ~ "Guizhou Province",
+    province == "Hainan" ~ "Hainan Province",
+    province == "Hebei" ~ "Hebei Province",
+    province == "Heilongjiang" ~ "Heilongjiang Province" ,
+    province == "Henan" ~ "Henan Province",
+    province == "Hubei" ~ "Hubei Province",
+    province == "Hunan" ~ "Hunan Province",
+    province == "Inner Mongolia" ~ "Inner Mongolia Autonomous Region",
+    province == "Jiangsu" ~ "Jiangsu Province",
+    province == "Jiangxi" ~ "Jiangxi Province",
+    province == "Jilin" ~ "Jilin Province",
+    province == "Liaoning" ~ "Liaoning Province",
+    province == "Ningxia" ~ "Ningxia Ningxia Hui Autonomous Region",
+    province == "Qinghai" ~ "Qinghai Province",
+    province == "Shaanxi" ~ "Shaanxi Province",
+    province == "Shandong" ~ "Shandong Province",
+    province == "Shanghai" ~ "Shanghai Municipality",
+    province == "Shanxi" ~ "Shanxi Province",
+    province == "Sichuan" ~ "Sichuan Province",
+    province == "Tianjin" ~ "Tianjin Municipality",
+    province == "Tibet" ~ "Tibet Autonomous Region",
+    province == "Xinjiang" ~ "Xinjiang Uyghur Autonomous Region",
+    province == "Yunnan" ~ "Yunnan Province",
+    province == "Zhejiang" ~ "Zhejiang Province",
+    .default = province
+  )
+  ) |> 
+  rename(shapeName = province)
+
+# join China geoJSON data and GDP data 
+
+china_gdp_join <- 
+  full_join(china, china_gdp_province, by = join_by(shapeName))
+
+# generate percent gdp 
+
+china_gdp_join <- 
+  china_gdp_join |> 
+  mutate(perc_gdp = 100*(x2023_gdp_billion_yuan/sum(x2023_gdp_billion_yuan, na.rm = TRUE)))
+
+ggplot() + 
+  geom_sf(data = china_gdp_join,aes(fill = perc_gdp)) + 
+  geom_sf(data = china_sez_cities) +
+  geom_label_repel(data = china_sez_cities, mapping = aes(x = lon, y = lat, label = city_name), min.segment.length = 0) + 
+  scale_fill_continuous(
+    name = "Percent Contribution to 2023 GDP\n(Billions Yuan)",
+    low = "#FFF",
+    high = "#EE1C25") + 
+  theme_void() + 
+  labs( 
+    title = "You scream, I scream—We all scream for Chinese SEZs!",
+    subtitle = str_wrap("The use of Special Economic Zones (SEZs) has led to approximately 20 percent of China's Gross Domestic Product to be centered in the southwest."),
+    caption = str_wrap("Source: National Bureau of Statistics of China; geoBoundaries R package; International Mission Board Geographical Informartion System, Cities")
+    )
+
+ggsave(filename = "china_sez_map.pdf", width = 11, height = 8.5)
+
+```
+
+
+## Visualization 6 
+
+### Purpose 
+
+The purpose of this visualization is to further explore the effect that special economic zones may have on provincial level gross domestic product in China over time since 1992.
+
+\pagebreak 
+
+```{r}
+#| label: gdp by province 1992-2023
+
+# have to render on macbook since I don't have this file on main machine
+
+province_gdp92_23 <-
+  read_xls("data/AnnualbyProvince.xls") |>
+  pivot_longer(
+    cols = 2:33,
+    values_to = "annual_gdp",
+    names_to = "year"
+  ) |> 
+  mutate(sez_province = ifelse(Region %in% c("Guangdong","Fujian","Hainan", "Shanghai","Tianjin"),1,0))
+
+# make numeric variables coded as numeric in R
+
+province_gdp92_23$year <- as.numeric(province_gdp92_23$year)
+
+province_gdp92_23$annual_gdp <- as.numeric(province_gdp92_23$annual_gdp)
+
+
+ggplot() + 
+  geom_line(data = filter(province_gdp92_23, sez_province == 1),aes(x = year, y = annual_gdp, color = Region)) + 
+  labs(
+    title = str_wrap("Mirror, Mirror on the Wall: Whose the richest province among them all?"),
+    subtitle = str_wrap("Among the seven Chinese provinces with Special Economic Zones (SEZs), Guangdong province has continued to outpace the competition since opening the first SEZs such as Shenzen and Zhuhai in 1980."
+  )
+)
+
+
+ggsave(filename = "china_sez_gdp.pdf", width = 11, height = 8.5)
+
+
+
+```
+
+## BONUS: Visualization 7: Chinese GDP over time 
+
+### Purpose 
+
+The purpose of this visualization is to show how China's GDP has moved over time with respect to the establishment of the first special economic zones in 1980.
+
+```{r}
+#| label: visualization 2 code
+
+china_50yeargdp <- 
+  wb_data("NY.GDP.MKTP.CD", country = "China") |> 
+  clean_names() |> 
+  select(-unit, -obs_status, -footnote, -last_updated) |> 
+  mutate(gdp_us_billions = ny_gdp_mktp_cd/10e9)
+
+china_50yeargdp
+
+ggplot(data = china_50yeargdp, aes(x = date, y = gdp_us_billions)) + 
+  geom_line() + 
+  geom_vline(xintercept = 1980)
+
+ggsave(filename = "china_sez_gdp.pdf", width = 11, height = 8.5)
 
 ```
