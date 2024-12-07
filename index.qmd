@@ -141,7 +141,6 @@ haiti_dom_plot <- # this is the 'base' plot
                                            DOM = "Dominican Republic",
                                            HTI = "Haiti")) + # custom color
   geom_text_repel(show.legend = FALSE, max.overlaps = 20) +
-  theme_minimal() + 
   labs(
     title = "Foreign Direct Investment Net Inflow and its impact on \n Broadband Access:",
     subtitle = str_wrap("The positive relationship between FDI and increasing access to Broadband in Hispaniola and small Caribbean States"),
@@ -151,6 +150,9 @@ haiti_dom_plot <- # this is the 'base' plot
   ylab("Broadband Access (per 100 people)")
 
 haiti_dom_plot
+
+ggsave(filename = "haiti_dom_plot.pdf", width = 11, height = 8.5)
+
 ```
 
 
@@ -271,7 +273,9 @@ japan_plot <-
     )
   )
 
-japan_plot 
+japan_plot + theme_void()
+
+ggsave("japan_plot.pdf", height = 8.5, width = 11) 
 
 ```
 
@@ -358,7 +362,7 @@ ggplot(data = upt_year_nyrail, aes(x = year,
     subtitle = "Over the past 20 years, the New York City subway remains the heavy favorite in commuter rail options compared to\n NJ Transit and PATH.",
     caption = str_wrap("Source: Complete Monthly Ridership - Federal Transit Administration https://www.transit.dot.gov/ntd/data-product/monthly-module-adjusted-data-release")
   ) + 
-  annotate(geom = "text", x = 2009, y = 50, label = "COVID-19 Pandemic forces\nstay-at-home measures") + 
+  annotate(geom = "text", x = 2009, y = 75, label = "COVID-19 Pandemic forces\nstay-at-home measures") + 
   theme_clean()
 
 ggsave(filename = "mtaridership.pdf", width = 11, height = 8.5)
