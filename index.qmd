@@ -15,6 +15,7 @@ fig-height: 8.5
 #| label: setup
 #| warning: false
 #| message: false
+#| include: false
 
 # core packages
 
@@ -50,7 +51,7 @@ theme_set(theme_clean())
 
 ```
 
-## Visualization 1 - Broadband Infrastructure and Foreign Direct Investment in the Carribean
+## Visualization 1: Broadband Infrastructure and Foreign Direct Investment in the Carribean
 
 ### Purpose
 
@@ -68,6 +69,7 @@ I have omitted larger Caribbean states such as Jamaica and Cuba as well as non-s
 #| label: visualization 1
 #| warning: false
 #| message: false
+#| include: false
 
 
 ## Visualization 1: 
@@ -144,19 +146,23 @@ haiti_dom_plot <- # this is the 'base' plot
   labs(
     title = "Foreign Direct Investment Net Inflow and its impact on \n Broadband Access:",
     subtitle = str_wrap("The positive relationship between FDI and increasing access to Broadband in Hispaniola and small Caribbean States"),
-    caption = strwrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data")
-  ) + 
-  xlab("Foreign Direct Investment Net Inflows (US$ per $100 million)") +
-  ylab("Broadband Access (per 100 people)")
+    caption = strwrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data"),
+  x = "Foreign Direct Investment Net Inflows (US$ per $100 million)",
+  y = "Broadband Access (per 100 people)"
+  ) +
+  theme(
+    plot.margin =  margin(t = 1, r = 1, b = 1, l = 1,unit = "pt"))
 
 haiti_dom_plot
 
-ggsave(filename = "haiti_dom_plot.pdf", width = 11, height = 8.5)
+ggsave(filename = "haiti_plot.png", width = 11, height = 8.5)
 
 ```
 
+![Broadband Access per 100 People](haiti_plot.png)
 
-## Visualization 2 - Japan's railroad infrastructure and its relationship with Gross Regional Domestic Product (GRDP)
+
+## Visualization 2: Japan's railroad infrastructure and its relationship with Gross Regional Domestic Product (GRDP)
 
 ### Purpose 
 
@@ -172,6 +178,7 @@ The purpose behind this visualization is to emphasis how railroad investment con
 #| label: visualization 2
 #| message: false
 #| warning: false
+#| include: false
 
 
 # load japan geofile in 
@@ -275,9 +282,11 @@ japan_plot <-
 
 japan_plot + theme_void()
 
-ggsave("japan_plot.pdf", height = 8.5, width = 11) 
+ggsave("japan_plot.png", height = 8.5, width = 11) 
 
 ```
+
+![Plot of Japanese Rail and GDP by Region](japan_plot.png)
 
 
 ## Visualization 3: One 'Rail' to Rule Them All: MTA Domination: 2002 - 2023
@@ -292,6 +301,7 @@ The purpose of this visualization is to visualize the monopolization of commuter
 #| label: visualization 3
 #| warning: false
 #| message: false
+#| include: false
 
 
 # load UTP ridership by calendar years and clean for NAs and filter for NY only
@@ -365,14 +375,16 @@ ggplot(data = upt_year_nyrail, aes(x = year,
   annotate(geom = "text", x = 2009, y = 75, label = "COVID-19 Pandemic forces\nstay-at-home measures") + 
   theme_clean()
 
-ggsave(filename = "mtaridership.pdf", width = 11, height = 8.5)
+ggsave(filename = "mtaridership.png", width = 11, height = 8.5)
 
   
 ```
 
+![MTA Ridership 2002 - 2023](mtaridership.png)
+
 \pagebreak
 
-## Original Visualization 4 - 'Debt and Taxes': The Two Guarantees of Public Transportation
+## Visualization 4: 'Debt and Taxes': The Two Guarantees of Public Transportation
 
 ### Purpose
 
@@ -388,6 +400,7 @@ Notably, the Washington Metropolitan Area Transportation Authority leads the pac
 #| label: visualization 4
 #| warning: false
 #| message: false
+#| include: false
 
 
 # load ridership for August 2024 and clean for NAs
@@ -436,12 +449,14 @@ public_ridership_fares |>
   theme_clean() + 
   scale_x_continuous(labels = scales::label_currency())
 
-ggsave("transitdebt.pdf", width = 11, height = 8.5)
+ggsave("transitdebt.png", width = 11, height = 8.5)
 
 
 ```
 
-## Vizualization 5
+![Transit Debt of Major Metropolitan Areas](transitdebt.png)
+
+## Vizualization 5: China's Special Economic Zones
 
 ### Purpose 
 
@@ -455,6 +470,7 @@ The purpose of this visualization is to explore the spatial economics of China's
 #| label: visualization 5
 #| message: false
 #| warning: false
+#| include: false
 
 
 china <- 
@@ -547,14 +563,15 @@ ggplot() +
   theme_void() + 
   labs( 
     title = "You scream, I scream—We all scream for Chinese SEZs!",
-    subtitle = str_wrap("The use of Special Economic Zones (SEZs) has led to approximately 20 percent of China's Gross Domestic Product to be centered in the southwest."),
+    subtitle = str_wrap("The use of Special Economic Zones (SEZs) has led to approximately 30 percent of China's Gross Domestic Product to be centered in the southeast."),
     caption = str_wrap("Source: National Bureau of Statistics of China; geoBoundaries R package; International Mission Board Geographical Informartion System, Cities")
     )
 
-ggsave(filename = "china_sez_map.pdf", width = 11, height = 8.5)
+ggsave(filename = "china_sez_map.png", width = 11, height = 8.5)
 
 ```
 
+![Map of Chinese Provinces and SEZs](china_sez_map.png)
 
 ## Visualization 6 
 
@@ -568,6 +585,7 @@ The purpose of this visualization is to further explore the effect that special 
 #| label: visualization 6
 #| warning: false
 #| message: false
+#| include: false
 
 
 # have to render on macbook since I don't have this file on main machine
@@ -593,15 +611,19 @@ ggplot() +
   labs(
     title = str_wrap("Mirror, Mirror on the Wall: Whose the richest province among them all?"),
     subtitle = str_wrap("Among the seven Chinese provinces with Special Economic Zones (SEZs), Guangdong province has continued to outpace the competition since opening the first SEZs such as Shenzen and Zhuhai in 1980."
-  )
+  ),
+  x = element_blank(),
+  y = "Annual GDP (Billions Yuan)"
 )
 
 
-ggsave(filename = "china_sez_gdp.pdf", width = 11, height = 8.5)
+ggsave(filename = "china_sez_gdp.png", width = 11, height = 8.5)
 
 
 
 ```
+
+![GDP over time in provinces with SEZs](china_sez_gdp.png)
 
 ## Visualization 7
 
@@ -615,6 +637,7 @@ The purpose of this visualization is to explore what CHIPS (**C**reating **H**el
 #| label: visualization 7
 #| message: false
 #| warning: false
+#| include: false
 
 
 semiconductors <- 
@@ -634,10 +657,10 @@ semiconductors |>
   ggplot(aes(x = fct_reorder(category, investment/10e6, .fun = "sum", .desc = TRUE), y = investment/10e6 )) + 
   geom_col(fill = "skyblue") + 
   labs(
-    title = str_wrap("The Lion's Share of CHIPS funding (un) surprisingly goes to chips in 2022"),
+    title = str_wrap("The Lion's Share of CHIPS (Creating Helpful Incentives for the Production of Semiconductors) funding (un) surprisingly goes to chips in 2022"),
     subtitle = str_wrap("After the CHIPS Act was signed into law in 2022, over $300 billion were allocated in building semiconductor factories."),
     x = "Investment Category",
-    y = "Invesment (Dollar Amount - Millions)",
+    y = "Invesment (Millions)",
     caption = "Source: Semiconductor Industry Association"
   ) + 
   scale_y_continuous(labels = scales::label_currency(prefix = "$")) + 
@@ -645,9 +668,11 @@ semiconductors |>
                     show.legend = FALSE) + 
   annotate(geom = "text", x = 4, y = 13001, label = "Only $427 million \n was allocated to equipment purchases")
 
-ggsave(filename = "chipinvest.pdf", width = 11, height = 8.5)
+ggsave(filename = "chipinvest.png", width = 11, height = 8.5)
 
 ```
+
+![Investment Categories for CHIP Funding](chipinvest.png)
 
 ## Visualization 8 
 
@@ -661,7 +686,7 @@ The purpose of this visualization is to look at investment amount compared to ex
 #| label: visualization 8
 #| message: false
 #| warning: false
-#
+#| include: false
 
 semiconductors |>
   ggplot(aes(x = investment/10e6 , y = jobs_expected)) + 
@@ -670,13 +695,14 @@ semiconductors |>
   labs(
     title = str_wrap("CHIPS investment may not lead to increased hiring"),
     subtitle = str_wrap("Though a positive trend can be found between CHIPS investment and hiring for industry giants, \n the same cannot be easily said about smaller industry players"),
-    x = "Investment (Dollar Amount - Millions)",
-    y = "Jobs Expected (Number of People)",
+    x = "Investment (Millions)",
+    y = "Jobs Expected",
     caption = "Source: Semiconductor Industry Association\nNote: Each dot represents an individual fabrication facility"
   ) + 
   scale_x_continuous(labels = scales::label_currency(prefix = "$"))
 
-ggsave(filename = "chipsinvesthire.pdf", height = 8.5,width = 11)
+ggsave(filename = "chipsinvesthire.png", height = 8.5,width = 11)
 
 ```
 
+![Scatter Plot of CHIPS investment and expected jobs](chipsinvesthire.png)

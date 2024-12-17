@@ -7,29 +7,48 @@ code-fold: true
 code-line-numbers: true
 code-copy: true
 lightbox: true
+fig-width: 11
+fig-height: 8.5
 ---
 
-```{r setup}
+```{r}
+#| label: setup
 #| warning: false
 #| message: false
+#| include: false
 
-library(tidyverse)
-library(fontawesome) # install.packages("fontawesome") - for waffle graphs
-library(styler) # install.packages("styler") - check for Tidy style guide adherence
-library(lintr) # install.packages("lintr") - check for Tidy style guide adherence
+# core packages
+
 library(tidyverse)
 library(readxl)
 library(haven)
-library(tidyverse)
+library(tidycensus) # US Census data API
+library(janitor)  # install.packages("janitor")
+library(lubridate)
+library(tidymodels)
+library(httr2)
+library(jsonlite)
+library(wbstats) # world bank api
+
+# visualization packages
+
+library(waffle) # install.packages("waffle")
+library(fontawesome) # install.packages("fontawesome") - for waffle graphs glyphs
 library(patchwork) # easy combine plots
-library(tigris) # direct download of shape files from US Cenus 
+library(tigris) # direct download of shape files from US Census 
 library(sf) # manipulate shapefiles 
-library(tidycensus) # shapefiles from Census 
 library(rgeoboundaries) # international boundaries 
 library(ggrepel)  # install.packages("ggrepel")
-library(janitor)  # install.packages("janitor")
 library(ggthemes) # install.packages("ggthemes")
 library(crsuggest) # install.packages("crsuggest")
+library(ggarchery) # install.packages("ggarchery") for easy arrows
+
+
+
+options(scipen = 999)
+
+theme_set(theme_clean())
+
 ```
 
 ## Visualization 1 - Broadband Infrastructure and Foreign Direct Investment in the Carribean
@@ -46,11 +65,12 @@ I have omitted larger Caribbean states such as Jamaica and Cuba as well as non-s
 
 
 
-```{r visualization 1}
+```{r}
+#| label: visualization 1
 #| warning: false
 #| message: false
-#| fig-width: 11
-#| fig-height: 8.5
+#| include: false
+
 
 ## Visualization 1: 
 
@@ -123,7 +143,6 @@ haiti_dom_plot <- # this is the 'base' plot
                                            DOM = "Dominican Republic",
                                            HTI = "Haiti")) + # custom color
   geom_text_repel(show.legend = FALSE, max.overlaps = 20) +
-  theme_minimal() + 
   labs(
     title = "Foreign Direct Investment Net Inflow and its impact on \n Broadband Access:",
     subtitle = str_wrap("The positive relationship between FDI and increasing access to Broadband in Hispaniola and small Caribbean States"),
@@ -133,6 +152,9 @@ haiti_dom_plot <- # this is the 'base' plot
   ylab("Broadband Access (per 100 people)")
 
 haiti_dom_plot
+
+ggsave(filename = "haiti_dom_plot.pdf", width = 11, height = 8.5)
+
 ```
 
 
@@ -140,7 +162,7 @@ haiti_dom_plot
 
 ### Purpose 
 
-The purpose behind this visualization cis to emphasis how railroad investment contributes to economic success. Japan has an extensive network of both private and government-owned railroads[^3] that efficiently ships foreign imports from the major ports of Japan and ferry commuters between the office and their home. Japan's high-speed rail system—the *shinkansen*, is vaunted for its ability to travel between major cities while maintaining superb passenger comfort and boosting regional economic growth.[^4]
+The purpose behind this visualization is to emphasis how railroad investment contributes to economic success. Japan has an extensive network of both private and government-owned railroads[^3] that efficiently ships foreign imports from the major ports of Japan and ferry commuters between the office and their home. Japan's high-speed rail system—the *shinkansen*, is vaunted for its ability to travel between major cities while maintaining superb passenger comfort and boosting regional economic growth.[^4]
 
 
 [^3]: Japan Private Railway Association, [*Introduction of Private Railway Companies*](https://www.mintetsu.or.jp/en/index.html)
@@ -148,11 +170,11 @@ The purpose behind this visualization cis to emphasis how railroad investment co
 [^4]: Government of Japan, [*The Shinkansen, Japan's High-Speed Rail, Is Full of Miracles*](https://www.japan.go.jp/tomodachi/2014/autumn2014/the_shinkansen_japans_high-speed_rail.html)
 
 
-```{r visualization 2}
+```{r}
+#| label: visualization 2
 #| message: false
 #| warning: false
-#| fig-width: 11
-#| fig-height: 8.5
+
 
 # load japan geofile in 
 
@@ -253,9 +275,410 @@ japan_plot <-
     )
   )
 
-japan_plot 
+japan_plot + theme_void()
+
+ggsave("japan_plot.pdf", height = 8.5, width = 11) 
 
 ```
 
 
+## Visualization 3: One 'Rail' to Rule Them All: MTA Domination: 2002 - 2023
+
+### Purpose 
+
+The purpose of this visualization is to visualize the monopolization of commuter rail by New York's Metropolitan Transportation Agency (MTA) and its sustained dominance over the commuter service of New Jersey Transit (NJ Transit) and the Port Authority Trans-Hudson Corporation (PATH). 
+
+\pagebreak
+
+```{r}
+#| label: visualization 3
+#| warning: false
+#| message: false
+
+
+# load UTP ridership by calendar years and clean for NAs and filter for NY only
+
+upt_calendaryear <- 
+  read_excel("data/upt_calendaryear_082024.xlsx") |>
+  clean_names() |>
+  select(-ntd_id, -legacy_ntd_id) |>
+  rename(transport_mode = x3_mode) |> 
+  pivot_longer(
+    cols = starts_with("x"),
+    names_to = "year",
+    values_to = "upt"
+    ) |>
+  filter(mode_type_of_service_status == "Active", 
+         reporter_type == "Full Reporter",
+         mode %in% c("MB", "HR", "LR"),
+         is.na(upt) == FALSE
+         ) |> 
+  mutate(upt_per_million = upt/10e6)
+    
+    
+ # fix year back to numeric 
+
+upt_calendaryear$year <- as.numeric(gsub("x","",x = upt_calendaryear$year))
+
+# group by top 10 agencies 
+
+upt_calendaryear$agency <- fct(upt_calendaryear$agency)
+upt_calendaryear$uza_name <- fct(upt_calendaryear$uza_name)
+
+uptyear <- 
+  tibble(upt_calendaryear$upt, upt_calendaryear$year) # for slice_max() order_by
+
+uptyear <-
+  uptyear |> 
+  rename(upt = `upt_calendaryear$upt`) |>
+  rename(year = `upt_calendaryear$year`)
+
+# create rail variable only for NY/NJ
+
+upt_year_nyrail <- 
+  upt_calendaryear |>
+  filter(tos == "DO", uza_name == "New York--Jersey City--Newark, NY--NJ",
+         !agency %in% c("City of Long Beach",
+                       "Town of Huntington",
+                       "Staten Island Rapid Transit Operating Authority",
+                       "Port Imperial Ferry Corporation",
+                       "Bergen County",
+                       "Somerset County",
+                       "MTA Bus Company"),
+         mode %in% c("LR","HR"),
+         year %in% (2002:2023) # 2024 isn't over yet
+         ) |>
+  reframe(agency,upt_per_million, mode, year)
+
+
+
+ggplot(data = upt_year_nyrail, aes(x = year,
+                                   y = upt_per_million, 
+                                   color = agency)) + 
+  geom_line(linewidth = 1.3) + 
+  geom_arrowsegment(aes(x = 2010, y = 85, xend = 2020, yend = 111.0554025), show.legend = FALSE, color = "black") + 
+  labs(
+    x = "Year",
+    y = "Passengers\n(Millions)",
+    title = "One Rail to Rule Them All: 20 years of MTA Subway Dominance",
+    subtitle = "Over the past 20 years, the New York City subway remains the heavy favorite in commuter rail options compared to\n NJ Transit and PATH.",
+    caption = str_wrap("Source: Complete Monthly Ridership - Federal Transit Administration https://www.transit.dot.gov/ntd/data-product/monthly-module-adjusted-data-release")
+  ) + 
+  annotate(geom = "text", x = 2009, y = 75, label = "COVID-19 Pandemic forces\nstay-at-home measures") + 
+  theme_clean()
+
+ggsave(filename = "mtaridership.pdf", width = 11, height = 8.5)
+
+  
+```
+
+\pagebreak
+
+## Original Visualization 4 - 'Debt and Taxes': The Two Guarantees of Public Transportation
+
+### Purpose
+
+The purpose behind this visualization is to cement the point that public, government-operated transport is often run at a loss in metropolitan areas—especially after the COVID-19 pandemic. On one hand, the business model of government-run public transport is what keeps *all* the citizens on major metropolitan areas moving and reduces the amount of cars of the street. On the other hand, the troubling lack of investment in public transportation in addition to increasing expenses continues to hamper the safety, resilience, and existence of public transport. 
+
+Notably, the Washington Metropolitan Area Transportation Authority leads the pack in debt with over $200 million dollars.[^5] This hits close to home, as I—as well as hundreds of thousands of other people—rely on WMATA to visit Northern Virginia and Maryland. 
+
+[^5]: Laris, M; [*Billion-dollar deficits, drastic cuts: Metro faces fiscal catastrophe*](https://www.washingtonpost.com/dc-md-va/2024/08/09/metro-financial-crisis/); The Washington Post, August 2024
+
+\pagebreak
+
+```{r}
+#| label: visualization 4
+#| warning: false
+#| message: false
+
+
+# load ridership for August 2024 and clean for NAs
+
+monthly_ridership <- 
+  read_xlsx("data/August 2024 Raw Monthly Ridership-no_adj.xlsx") |> 
+  clean_names() |>
+  select(-ntd_id, -legacy_ntd_id) |> 
+  mutate(profit = fares_fy - operating_expenses_fy)
+
+monthly_ridership_public <- 
+  monthly_ridership |>
+  filter(mode_type_of_service_status == "Active", 
+         reporter_type == "Full Reporter",
+         mode %in% c("MB", "HR", "LR"),
+         !organization_type %in% c("Private-For-Profit Corporation",
+                                   "Private-Non-Profit Corporation",
+                                   "Subsidiary Unit of a Transit Agency, Reporting Separately",
+                                   "MPO, COG or Other Planning Agency",
+                                   "University","?"),
+         last_closed_report_year == 2022
+  ) 
+
+# get monthly fare revenue, expenses, and trip-cost ratio for major metros
+
+public_ridership_fares <-
+  monthly_ridership_public |>
+  slice_max(order_by = unlinked_passenger_trips_fy, n = 20) |>
+  group_by(uza_name) |>
+  summarize(fare_revenue = sum(fares_fy, na.rm = TRUE)/10e6, expenses = sum(operating_expenses_fy, na.rm = TRUE)/10e6, avg_trip_cost = mean(avg_cost_per_trip_fy, na.rm = TRUE))
+
+public_ridership_fares$uza_name <- fct(public_ridership_fares$uza_name)
+
+# plot 
+
+public_ridership_fares |>
+  ggplot(aes(x = fare_revenue - expenses, y = fct_reorder(uza_name, fare_revenue - expenses, .desc = TRUE))) +
+  geom_col(fill = "red") + 
+  labs(
+    title = "Public Transport: the 'debt' maker for metropolitan America in 2024",
+    subtitle = "Of the top 20 metropolitian areas by ridership, none have turned a profit in August 2024",
+    caption = str_wrap("Source: Complete Monthly Ridership - Federal Transit Administration \n https://www.transit.dot.gov/ntd/data-product/monthly-module-adjusted-data-release"),
+    x = "Monthly Profit (Million US$) ",
+    y = "Metropolitian Area"
+  ) + 
+  theme_clean() + 
+  scale_x_continuous(labels = scales::label_currency())
+
+ggsave("transitdebt.pdf", width = 11, height = 8.5)
+
+
+```
+
+## Vizualization 5
+
+### Purpose 
+
+The purpose of this visualization is to explore the spatial economics of China's Special Economic Zones or SEZs. These areas benefit from relaxed regulation and government assistance in the form of subsides, tax breaks, or even direct intervention.[^6]
+
+[^6]: Zeng, D.;*China’s Special Economic Zones and Industrial Clusters: Success and Challenges*; Lincoln Institute of Land Policy 2012
+
+\pagebreak
+
+```{r}
+#| label: visualization 5
+#| message: false
+#| warning: false
+
+
+china <- 
+  geoboundaries(country = "China", adm_lvl = 1) |> 
+  filter(!shapeName == "Taiwan Province") |> 
+  st_as_sf(crs = 4584)
+
+cities <- 
+  read_sf("data/cities.geojson") |> 
+  clean_names() |> 
+  select(!1:6)
+
+china_cities <- 
+  cities |> 
+  filter(ctry == "China") |>
+  rename(city_name = name) |> 
+  select(city_name,pop,lat,lon,geometry)|> 
+  mutate(sez = if_else(city_name %in% c("Shenzhen",
+                                        "Xiamen",
+                                        "Hainan",
+                                        "Zhuhai",
+                                        "Shantou",
+                                        "Shanghai",
+                                        "Tianjin"),
+                       true = 1, false = 0))
+
+china_sez_cities <- 
+  china_cities |>
+  filter(sez == 1 | city_name == "Beijing")
+
+china_gdp_province <- 
+  read_xlsx("data/gross-domestic-product--gdp--of-china-2023-by-region.xlsx") |>
+  clean_names() |> 
+  mutate(province = case_when(
+    province == "Anhui" ~ "Anhui Province",
+    province == "Beijing" ~ "Beijing Municipality",
+    province == "Chongqing" ~ "Chongqing Municipality",
+    province == "Fujian" ~ "Fujian Province",
+    province == "Gansu" ~ "Gansu Province",
+    province == "Guangdong" ~ "Guangzhou Province",
+    province == "Guangxi" ~ "Guangxi Zhuang Autonomous Region",
+    province == "Guizhou" ~ "Guizhou Province",
+    province == "Hainan" ~ "Hainan Province",
+    province == "Hebei" ~ "Hebei Province",
+    province == "Heilongjiang" ~ "Heilongjiang Province" ,
+    province == "Henan" ~ "Henan Province",
+    province == "Hubei" ~ "Hubei Province",
+    province == "Hunan" ~ "Hunan Province",
+    province == "Inner Mongolia" ~ "Inner Mongolia Autonomous Region",
+    province == "Jiangsu" ~ "Jiangsu Province",
+    province == "Jiangxi" ~ "Jiangxi Province",
+    province == "Jilin" ~ "Jilin Province",
+    province == "Liaoning" ~ "Liaoning Province",
+    province == "Ningxia" ~ "Ningxia Ningxia Hui Autonomous Region",
+    province == "Qinghai" ~ "Qinghai Province",
+    province == "Shaanxi" ~ "Shaanxi Province",
+    province == "Shandong" ~ "Shandong Province",
+    province == "Shanghai" ~ "Shanghai Municipality",
+    province == "Shanxi" ~ "Shanxi Province",
+    province == "Sichuan" ~ "Sichuan Province",
+    province == "Tianjin" ~ "Tianjin Municipality",
+    province == "Tibet" ~ "Tibet Autonomous Region",
+    province == "Xinjiang" ~ "Xinjiang Uyghur Autonomous Region",
+    province == "Yunnan" ~ "Yunnan Province",
+    province == "Zhejiang" ~ "Zhejiang Province",
+    .default = province
+  )
+  ) |> 
+  rename(shapeName = province)
+
+# join China geoJSON data and GDP data 
+
+china_gdp_join <- 
+  full_join(china, china_gdp_province, by = join_by(shapeName))
+
+# generate percent gdp 
+
+china_gdp_join <- 
+  china_gdp_join |> 
+  mutate(perc_gdp = 100*(x2023_gdp_billion_yuan/sum(x2023_gdp_billion_yuan, na.rm = TRUE)))
+
+ggplot() + 
+  geom_sf(data = china_gdp_join,aes(fill = perc_gdp)) + 
+  geom_sf(data = china_sez_cities) +
+  geom_label_repel(data = china_sez_cities, mapping = aes(x = lon, y = lat, label = city_name), min.segment.length = 0) + 
+  scale_fill_continuous(
+    name = "Percent Contribution to 2023 GDP\n(Billions Yuan)",
+    low = "#FFF",
+    high = "#EE1C25") + 
+  theme_void() + 
+  labs( 
+    title = "You scream, I scream—We all scream for Chinese SEZs!",
+    subtitle = str_wrap("The use of Special Economic Zones (SEZs) has led to approximately 20 percent of China's Gross Domestic Product to be centered in the southwest."),
+    caption = str_wrap("Source: National Bureau of Statistics of China; geoBoundaries R package; International Mission Board Geographical Informartion System, Cities")
+    )
+
+ggsave(filename = "china_sez_map.pdf", width = 11, height = 8.5)
+
+```
+
+
+## Visualization 6 
+
+### Purpose 
+
+The purpose of this visualization is to further explore the effect that special economic zones may have on provincial level gross domestic product in China over time since 1992.
+
+\pagebreak 
+
+```{r}
+#| label: visualization 6
+#| warning: false
+#| message: false
+
+
+# have to render on macbook since I don't have this file on main machine
+
+province_gdp92_23 <-
+  read_xls("data/AnnualbyProvince.xls") |>
+  pivot_longer(
+    cols = 2:33,
+    values_to = "annual_gdp",
+    names_to = "year"
+  ) |> 
+  mutate(sez_province = ifelse(Region %in% c("Guangdong","Fujian","Hainan", "Shanghai","Tianjin"),1,0))
+
+# make numeric variables coded as numeric in R
+
+province_gdp92_23$year <- as.numeric(province_gdp92_23$year)
+
+province_gdp92_23$annual_gdp <- as.numeric(province_gdp92_23$annual_gdp)
+
+
+ggplot() + 
+  geom_line(data = filter(province_gdp92_23, sez_province == 1),aes(x = year, y = annual_gdp, color = Region)) + 
+  labs(
+    title = str_wrap("Mirror, Mirror on the Wall: Whose the richest province among them all?"),
+    subtitle = str_wrap("Among the seven Chinese provinces with Special Economic Zones (SEZs), Guangdong province has continued to outpace the competition since opening the first SEZs such as Shenzen and Zhuhai in 1980."
+  )
+)
+
+
+ggsave(filename = "china_sez_gdp.pdf", width = 11, height = 8.5)
+
+
+
+```
+
+## Visualization 7
+
+### Purpose
+
+The purpose of this visualization is to explore what CHIPS (**C**reating **H**elpful **I**ncentives to **P**roduce **S**emiconductors) Act funding is going toward in regard to building infrastructure for domestic semiconductor production. 
+
+\pagebreak
+
+```{r}
+#| label: visualization 7
+#| message: false
+#| warning: false
+
+
+semiconductors <- 
+  read_csv("data/sia_chips_invest.csv", 
+           col_types = cols(Investment = col_number(), 
+                            `Jobs Expected` = col_number())) |>
+  clean_names() |>
+  select(-source)  
+
+semiconductors$category <- fct(semiconductors$category)
+
+semiconductors <-
+  semiconductors |>
+  filter(jobs_expected != "Not Available",investment != "Not Available" )
+
+semiconductors |>
+  ggplot(aes(x = fct_reorder(category, investment/10e6, .fun = "sum", .desc = TRUE), y = investment/10e6 )) + 
+  geom_col(fill = "skyblue") + 
+  labs(
+    title = str_wrap("The Lion's Share of CHIPS funding (un) surprisingly goes to chips in 2022"),
+    subtitle = str_wrap("After the CHIPS Act was signed into law in 2022, over $300 billion were allocated in building semiconductor factories."),
+    x = "Investment Category",
+    y = "Invesment (Dollar Amount - Millions)",
+    caption = "Source: Semiconductor Industry Association"
+  ) + 
+  scale_y_continuous(labels = scales::label_currency(prefix = "$")) + 
+  geom_arrowsegment(aes(x = 4,y = 10000, xend = 5, yend = 2000), 
+                    show.legend = FALSE) + 
+  annotate(geom = "text", x = 4, y = 13001, label = "Only $427 million \n was allocated to equipment purchases")
+
+ggsave(filename = "chipinvest.pdf", width = 11, height = 8.5)
+
+```
+
+## Visualization 8 
+
+### Purpose 
+
+The purpose of this visualization is to look at investment amount compared to expected job openings for semiconductor firms that have announced receiving funding through the CHIPS Act.
+
+\pagebreak
+
+```{r}
+#| label: visualization 8
+#| message: false
+#| warning: false
+#
+
+semiconductors |>
+  ggplot(aes(x = investment/10e6 , y = jobs_expected)) + 
+  geom_point(alpha = .4, color = "forestgreen") + 
+  geom_text_repel(aes(label = company)) +
+  labs(
+    title = str_wrap("CHIPS investment may not lead to increased hiring"),
+    subtitle = str_wrap("Though a positive trend can be found between CHIPS investment and hiring for industry giants, \n the same cannot be easily said about smaller industry players"),
+    x = "Investment (Dollar Amount - Millions)",
+    y = "Jobs Expected (Number of People)",
+    caption = "Source: Semiconductor Industry Association\nNote: Each dot represents an individual fabrication facility"
+  ) + 
+  scale_x_continuous(labels = scales::label_currency(prefix = "$"))
+
+ggsave(filename = "chipsinvesthire.pdf", height = 8.5,width = 11)
+
+```
 
