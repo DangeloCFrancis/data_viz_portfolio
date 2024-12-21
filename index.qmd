@@ -32,8 +32,6 @@ library(wbstats) # world bank api
 
 # visualization packages
 
-library(waffle) # install.packages("waffle")
-library(fontawesome) # install.packages("fontawesome") - for waffle graphs glyphs
 library(patchwork) # easy combine plots
 library(tigris) # direct download of shape files from US Census 
 library(sf) # manipulate shapefiles 
@@ -55,15 +53,12 @@ theme_set(theme_clean())
 
 ### Purpose
 
-The purpose of this visualization is to demonstrate the benefit of net foreign direct investment (FDI) in expanding access to broadband internet in the Caribbean. Specifically, I am exploring the relationship between FDI net inflow and broadband access[^1] from  2013-2023 with respect to the World Bank's definition of Caribbean Small States and Hispaniola (Haiti and the Dominican Republic.[^2]
-
-I have omitted larger Caribbean states such as Jamaica and Cuba as well as non-sovereign overseas territories and provinces due to extreme outliers. I have also omitted some points due to overlap, as some years had extremely similar yearly FDI inflow values. I do not expect these adjustments to misrepresent the data. Importantly, I want the end user to observe the stark difference between Haiti and the Dominican Republic despite being neighbors on the same island.  
+The purpose of this visualization is to demonstrate the benefit of net foreign direct investment (FDI) in expanding access to broadband internet in the Caribbean. Specifically, I am exploring the relationship between FDI net inflow and broadband access[^1] from 2013-2023 with respect to Hispaniola (Haiti and the Dominican Republic. I want the end user to observe the stark difference between Haiti and the Dominican Republic despite being neighbors on the same island.  
 
 [^1]: Fixed broadband subscriptions refers to fixed subscriptions to high-speed access to the public Internet downstream speeds equal to, or greater than, 256 kbit/s. This includes cable modem, DSL, fiber-to-the-home/building, other fixed (wired)-broadband subscriptions, satellite broadband and terrestrial fixed wireless broadband. It *excludes* subscriptions that have access to data communications via mobile-cellular networks.
 
-[^2]:The Caribbean Small States are Antigua and Barbuda, The Bahamas, Barbados, Belize, Dominica, Grenada, Guyana, St. Kitts and Nevis, St. Lucia, St. Vincent and the Grenadines, and Suriname.
 
-
+\pagebreak
 
 ```{r}
 #| label: visualization 1
@@ -127,40 +122,35 @@ broadfdi_Carib98 <-
 broadfdi_Carib2013 <- 
   broadfdi_Carib98|>  
   filter(year %in% c("2013":"2023"))
-         
-# select country of interest ; color thru vars must be passed through aes *duh*
-
-# to-do Wednesday and Thursday: refine legend and annotations.
 
 haiti_dom_plot <- # this is the 'base' plot
   broadfdi_Carib2013 |>
-  filter(code %in% c("CSS","DOM","HTI")) |>
+  filter(code %in% c("DOM","HTI")) |>
   ggplot(aes(x = fdi, y = access, label = year, color = code)) + 
   geom_point(position = "jitter") + 
   scale_color_manual(name = "Country/Region",
-                     values = c(CSS = "maroon", DOM = "#002D62", HTI = "#016a16"),
-                                labels = c(CSS = "Caribbean Small States",
-                                           DOM = "Dominican Republic",
+                     values = c(DOM = "#002D62", HTI = "#016a16"),
+                                labels = c(DOM = "Dominican Republic",
                                            HTI = "Haiti")) + # custom color
   geom_text_repel(show.legend = FALSE, max.overlaps = 20) +
   labs(
-    title = "Foreign Direct Investment Net Inflow and its impact on \n Broadband Access:",
-    subtitle = str_wrap("The positive relationship between FDI and increasing access to Broadband in Hispaniola and small Caribbean States"),
-    caption = strwrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data"),
-  x = "Foreign Direct Investment Net Inflows (US$ per $100 million)",
+    title = str_wrap("Foreign Direct Investment Net Inflow and its positive impact on broadband Access"),
+    subtitle = str_wrap("Despite being on the same island, only the Dominican Repulic is able to use FDI inflow to increase broadband access among its citizens, while Haiti grapples with political turmoil"),
+    caption = str_wrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data"),
+  x = "Foreign Direct Investment Net Inflows (per $100 million)",
   y = "Broadband Access (per 100 people)"
-  ) +
-  theme(
-    plot.margin =  margin(t = 1, r = 1, b = 1, l = 1,unit = "pt"))
+  )
 
 haiti_dom_plot
 
-ggsave(filename = "haiti_plot.png", width = 11, height = 8.5)
+ggsave(filename = "haiti_dom_plot.png", width = 11, height = 8.5)
+
+ggsave(filename = "haiti_dom_plot.pdf", width = 11, height = 8.5)
 
 ```
 
-![Broadband Access per 100 People](haiti_plot.png)
-
+![Broadband Access per 100 People](haiti_dom_plot.png)
+\pagebreak
 
 ## Visualization 2: Japan's railroad infrastructure and its relationship with Gross Regional Domestic Product (GRDP)
 
@@ -173,6 +163,7 @@ The purpose behind this visualization is to emphasis how railroad investment con
 
 [^4]: Government of Japan, [*The Shinkansen, Japan's High-Speed Rail, Is Full of Miracles*](https://www.japan.go.jp/tomodachi/2014/autumn2014/the_shinkansen_japans_high-speed_rail.html)
 
+\pagebreak
 
 ```{r}
 #| label: visualization 2
@@ -266,28 +257,28 @@ japan_plot <-
                    box.padding = .15, 
                    label.padding = .15, 
                    min.segment.length = 2) + # use this for sf label overlaps 
-  theme(
-    panel.background = element_blank(),
-    axis.text = element_blank(),
-    axis.ticks = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank()
-  ) + 
   labs(
-    title = "The Relationship between GDP Share and Railroad Infrastructure in Japan",
-    subtitle = "A Prefecture's railroad density can serve as an indicator for national GDP contributions",
+    title = str_wrap("Provincial GDP Share and Railroad Infrastructure in Japan go hand-in-hand"),
+    subtitle = str_wrap("Railroad infrastrcutre in Japan serves the major population centers and ports of trade in Japan"),
     caption = str_wrap("Source: 2020 National Accounts, Economic and Social Research Institute of Japan; \n geoBoundaries R package; IMB GIS, Cities ; ArcGIS Hub, Japan Railroads"
     )
+  ) + 
+  theme_void() + 
+  theme(
+    plot.margin = margin(t = 2, r = 2, b = 2, l = 2, unit = "pt")
   )
 
-japan_plot + theme_void()
+japan_plot
 
 ggsave("japan_plot.png", height = 8.5, width = 11) 
+
+ggsave("japan_plot.pdf", height = 8.5, width = 11) 
 
 ```
 
 ![Plot of Japanese Rail and GDP by Region](japan_plot.png)
 
+\pagebreak
 
 ## Visualization 3: One 'Rail' to Rule Them All: MTA Domination: 2002 - 2023
 
@@ -366,7 +357,7 @@ ggplot(data = upt_year_nyrail, aes(x = year,
   geom_line(linewidth = 1.3) + 
   geom_arrowsegment(aes(x = 2010, y = 85, xend = 2020, yend = 111.0554025), show.legend = FALSE, color = "black") + 
   labs(
-    x = "Year",
+    x = element_blank(),
     y = "Passengers\n(Millions)",
     title = "One Rail to Rule Them All: 20 years of MTA Subway Dominance",
     subtitle = "Over the past 20 years, the New York City subway remains the heavy favorite in commuter rail options compared to\n NJ Transit and PATH.",
@@ -376,6 +367,8 @@ ggplot(data = upt_year_nyrail, aes(x = year,
   theme_clean()
 
 ggsave(filename = "mtaridership.png", width = 11, height = 8.5)
+
+ggsave(filename = "mtaridership.pdf", width = 11, height = 8.5)
 
   
 ```
@@ -444,23 +437,26 @@ public_ridership_fares |>
     subtitle = "Of the top 20 metropolitian areas by ridership, none have turned a profit in August 2024",
     caption = str_wrap("Source: Complete Monthly Ridership - Federal Transit Administration \n https://www.transit.dot.gov/ntd/data-product/monthly-module-adjusted-data-release"),
     x = "Monthly Profit (Million US$) ",
-    y = "Metropolitian Area"
+    y = element_blank()
   ) + 
   theme_clean() + 
   scale_x_continuous(labels = scales::label_currency())
 
 ggsave("transitdebt.png", width = 11, height = 8.5)
 
+ggsave("transitdebt.pdf", width = 11, height = 8.5)
+
 
 ```
 
 ![Transit Debt of Major Metropolitan Areas](transitdebt.png)
+\pagebreak
 
 ## Vizualization 5: China's Special Economic Zones
 
 ### Purpose 
 
-The purpose of this visualization is to explore the spatial economics of China's Special Economic Zones or SEZs. These areas benefit from relaxed regulation and government assistance in the form of subsides, tax breaks, or even direct intervention.[^6]
+The purpose of this visualization is to explore the spatial economics of China's Special Economic Zones or SEZs. These areas benefit from relaxed regulation and government assistance in the form of subsides, tax breaks, or even direct government intervention.[^6]
 
 [^6]: Zeng, D.;*China’s Special Economic Zones and Industrial Clusters: Success and Challenges*; Lincoln Institute of Land Policy 2012
 
@@ -562,16 +558,19 @@ ggplot() +
     high = "#EE1C25") + 
   theme_void() + 
   labs( 
-    title = "You scream, I scream—We all scream for Chinese SEZs!",
+    title = "The Positive Economic Impact of China's Special Economic Zones",
     subtitle = str_wrap("The use of Special Economic Zones (SEZs) has led to approximately 30 percent of China's Gross Domestic Product to be centered in the southeast."),
     caption = str_wrap("Source: National Bureau of Statistics of China; geoBoundaries R package; International Mission Board Geographical Informartion System, Cities")
     )
 
 ggsave(filename = "china_sez_map.png", width = 11, height = 8.5)
 
+ggsave(filename = "china_sez_map.pdf", width = 11, height = 8.5)
+
 ```
 
 ![Map of Chinese Provinces and SEZs](china_sez_map.png)
+\pagebreak
 
 ## Visualization 6 
 
@@ -587,9 +586,6 @@ The purpose of this visualization is to further explore the effect that special 
 #| message: false
 #| include: false
 
-
-# have to render on macbook since I don't have this file on main machine
-
 province_gdp92_23 <-
   read_xls("data/AnnualbyProvince.xls") |>
   pivot_longer(
@@ -597,7 +593,8 @@ province_gdp92_23 <-
     values_to = "annual_gdp",
     names_to = "year"
   ) |> 
-  mutate(sez_province = ifelse(Region %in% c("Guangdong","Fujian","Hainan", "Shanghai","Tianjin"),1,0))
+  mutate(sez_province = ifelse(Region %in% c("Guangdong","Fujian","Hainan", "Shanghai","Tianjin"),1,0)) |>
+  rename(province = Region)
 
 # make numeric variables coded as numeric in R
 
@@ -607,23 +604,24 @@ province_gdp92_23$annual_gdp <- as.numeric(province_gdp92_23$annual_gdp)
 
 
 ggplot() + 
-  geom_line(data = filter(province_gdp92_23, sez_province == 1),aes(x = year, y = annual_gdp, color = Region)) + 
+  geom_line(data = filter(province_gdp92_23, sez_province == 1),aes(x = year, y = annual_gdp, color = province)) + 
   labs(
     title = str_wrap("Mirror, Mirror on the Wall: Whose the richest province among them all?"),
     subtitle = str_wrap("Among the seven Chinese provinces with Special Economic Zones (SEZs), Guangdong province has continued to outpace the competition since opening the first SEZs such as Shenzen and Zhuhai in 1980."
   ),
   x = element_blank(),
   y = "Annual GDP (Billions Yuan)"
-)
-
+) + 
+  scale_y_continuous(labels = scales::label_currency(prefix = "¥"))
 
 ggsave(filename = "china_sez_gdp.png", width = 11, height = 8.5)
 
-
+ggsave(filename = "china_sez_gdp.pdf", width = 11, height = 8.5)
 
 ```
 
 ![GDP over time in provinces with SEZs](china_sez_gdp.png)
+\pagebreak
 
 ## Visualization 7
 
@@ -657,7 +655,7 @@ semiconductors |>
   ggplot(aes(x = fct_reorder(category, investment/10e6, .fun = "sum", .desc = TRUE), y = investment/10e6 )) + 
   geom_col(fill = "skyblue") + 
   labs(
-    title = str_wrap("The Lion's Share of CHIPS (Creating Helpful Incentives for the Production of Semiconductors) funding (un) surprisingly goes to chips in 2022"),
+    title = str_wrap("The Lion's Share of CHIPS (Creating Helpful Incentives to Produce Semiconductors) funding (un) surprisingly goes to chips in 2022"),
     subtitle = str_wrap("After the CHIPS Act was signed into law in 2022, over $300 billion were allocated in building semiconductor factories."),
     x = "Investment Category",
     y = "Invesment (Millions)",
@@ -670,9 +668,12 @@ semiconductors |>
 
 ggsave(filename = "chipinvest.png", width = 11, height = 8.5)
 
+ggsave(filename = "chipinvest.pdf", width = 11, height = 8.5)
+
 ```
 
 ![Investment Categories for CHIP Funding](chipinvest.png)
+\pagebreak
 
 ## Visualization 8 
 
@@ -702,6 +703,8 @@ semiconductors |>
   scale_x_continuous(labels = scales::label_currency(prefix = "$"))
 
 ggsave(filename = "chipsinvesthire.png", height = 8.5,width = 11)
+
+ggsave(filename = "chipsinvesthire.pdf", height = 8.5,width = 11)
 
 ```
 
