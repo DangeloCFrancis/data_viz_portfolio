@@ -9,38 +9,34 @@ code-copy: true
 lightbox: true
 fig-width: 11
 fig-height: 8.5
+warning: false
 ---
 
 ```{r}
-#| label: setup
-#| warning: false
+#| label: global setup for visualizations
 #| message: false
 #| include: false
 
 # core packages
 
-library(tidyverse)
-library(readxl)
-library(haven)
-library(tidycensus) # US Census data API
-library(janitor)  # install.packages("janitor")
-library(lubridate)
-library(tidymodels)
-library(httr2)
-library(jsonlite)
-library(wbstats) # world bank api
+pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, wbstats)
+
 
 # visualization packages
 
-library(patchwork) # easy combine plots
-library(tigris) # direct download of shape files from US Census 
-library(sf) # manipulate shapefiles 
-library(rgeoboundaries) # international boundaries 
-library(ggrepel)  # install.packages("ggrepel")
-library(ggthemes) # install.packages("ggthemes")
-library(crsuggest) # install.packages("crsuggest")
-library(ggarchery) # install.packages("ggarchery") for easy arrows
+pacman::p_load(patchwork, tigris, sf, rgeoboundaries, ggrepel, ggthemes, crsuggest, ggarchery,
+               labelled, gt)
 
+# library(patchwork) # easy combine plots
+# library(tigris) # direct download of shape files from US Census 
+# library(sf) # manipulate shapefiles 
+# library(rgeoboundaries) # international boundaries 
+# library(ggrepel)  # install.packages("ggrepel")
+# library(ggthemes) # install.packages("ggthemes")
+# library(crsuggest) # install.packages("crsuggest")
+# library(ggarchery) # install.packages("ggarchery") for easy arrows
+# library(labelled) # for descriptive variable labels
+# library(gt) # for presentation tables 
 
 
 options(scipen = 999)
@@ -49,107 +45,30 @@ theme_set(theme_clean())
 
 ```
 
-## Visualization 1: Broadband Infrastructure and Foreign Direct Investment in the Carribean
+## Visualization 1: Broadband Infrastructure and Foreign Direct Investment in the Caribbean
 
 ### Purpose
 
-The purpose of this visualization is to demonstrate the benefit of net foreign direct investment (FDI) in expanding access to broadband internet in the Caribbean. Specifically, I am exploring the relationship between FDI net inflow and broadband access[^1] from 2013-2023 with respect to Hispaniola (Haiti and the Dominican Republic. I want the end user to observe the stark difference between Haiti and the Dominican Republic despite being neighbors on the same island.  
+The purpose of this visualization is to demonstrate the benefit of net foreign direct investment (FDI) in expanding access to broadband internet in the Caribbean. Specifically, I want to explore the relationship between FDI net inflow and broadband access[^1] from 2013-2023 with respect to the island of Hispaniola, where the countries of Haiti and the Dominican Republic are located. Despite being neighbors on an island, there is a stark difference between Haiti and the Dominican Republic in FDI net inflows and broadband access. This should not be surprising to anyone, as the Dominican Republic benefits from stable governance and rule of law.[^2] Since the 2011 earthquake rocked Haitian society, the political structure in Haiti has only grown weaker. After the assassination of Haitian president Jovenel Moïse in 2021, Haiti has remained in the death grips of rival gangs, only furthering the decline of quality of life in Haiti.
 
 [^1]: Fixed broadband subscriptions refers to fixed subscriptions to high-speed access to the public Internet downstream speeds equal to, or greater than, 256 kbit/s. This includes cable modem, DSL, fiber-to-the-home/building, other fixed (wired)-broadband subscriptions, satellite broadband and terrestrial fixed wireless broadband. It *excludes* subscriptions that have access to data communications via mobile-cellular networks.
+
+[^2]: Tavakoli, Ariana N.K.; *Inequality in the Caribbean: A Case Study of Hispaniola*; Villanova University; 2015 [Link](https://concept.journals.villanova.edu/article/download/1857/1749?inline=1)
 
 
 \pagebreak
 
 ```{r}
-#| label: visualization 1
-#| warning: false
+#| label: visualization 1: broadband internet in the Carribbean
 #| message: false
 #| include: false
 
 
-## Visualization 1: 
-
-# import and clean data, continue to 'tidy' data to 4 variable categories  
-
-broadband <- 
-  read_excel("data/Fixed broadband subscriptions (per 100 people).xlsx")|>
-  pivot_longer(
-    cols = 3:28, # what I'm pivoting
-    names_to = "year", # the new column for what I'm pivoting
-    values_to = "access" # where column values go
-  ) |> 
-  rename(
-    code = `Country Code`, # for easy variable calling later on
-    name = `Country Name`
-  ) |> 
-  remove_missing()
-
-# bring in FDI data 
-
-fdi_inflow <- 
-  read_excel("data/Foreign direct investment^J net inflows (BoP^J current US$).xlsx") |>
-  pivot_longer(
-    cols = 3:56,
-    names_to = "year",
-    values_to = "fdi"
-  ) |> 
-  rename(
-    code = `Country Code`,
-    name = `Country Name`
-  ) |> 
-  remove_missing() |> 
-  mutate(fdi = fdi/100000000)
-
-# join fdi and broadband data for easy use 
-
-broadband_fdi_inflow <- 
-  right_join(broadband, y = fdi_inflow, by = join_by(name, code, year))
-
-# filter year to 1998 for broadband 
-
-broadband_fdi_inflow98 <- 
-  broadband_fdi_inflow |>
-  filter(year %in% c("1998":"2023"))
-
-# choose countries of interest - I want to focus on Caribbean 
-
-broadfdi_Carib98 <- 
-  broadband_fdi_inflow98 |>  
-  filter(code %in% c("ABW","ATG","BHS","BMU","BRB", "CSS", "CUB", "CUW","CYM", "DMA", "DOM", "GRD", "HTI", "JAM", "KNA", "LCN", "LCA", "NAC", "PRI", "TCA","VCT","VGB","VIR"))
-
-# Narrowing time frame to 2013 - 2023 
-
-broadfdi_Carib2013 <- 
-  broadfdi_Carib98|>  
-  filter(year %in% c("2013":"2023"))
-
-haiti_dom_plot <- # this is the 'base' plot
-  broadfdi_Carib2013 |>
-  filter(code %in% c("DOM","HTI")) |>
-  ggplot(aes(x = fdi, y = access, label = year, color = code)) + 
-  geom_point(position = "jitter") + 
-  scale_color_manual(name = "Country/Region",
-                     values = c(DOM = "#002D62", HTI = "#016a16"),
-                                labels = c(DOM = "Dominican Republic",
-                                           HTI = "Haiti")) + # custom color
-  geom_text_repel(show.legend = FALSE, max.overlaps = 20) +
-  labs(
-    title = str_wrap("Foreign Direct Investment Net Inflow and its positive impact on broadband Access"),
-    subtitle = str_wrap("Despite being on the same island, only the Dominican Repulic is able to use FDI inflow to increase broadband access among its citizens, while Haiti grapples with political turmoil"),
-    caption = str_wrap("Source: International Monetary Fund, Balance of Payments | World Bank Open Data"),
-  x = "Foreign Direct Investment Net Inflows (per $100 million)",
-  y = "Broadband Access (per 100 people)"
-  )
-
-haiti_dom_plot
-
-ggsave(filename = "haiti_dom_plot.png", width = 11, height = 8.5)
-
-ggsave(filename = "haiti_dom_plot.pdf", width = 11, height = 8.5)
+source("visualization_1_code.R")
 
 ```
 
-![Broadband Access per 100 People](haiti_dom_plot.png)
+![Broadband Access per 100 People](visualizations/visualization_1.png)
 \pagebreak
 
 ## Visualization 2: Japan's railroad infrastructure and its relationship with Gross Regional Domestic Product (GRDP)
