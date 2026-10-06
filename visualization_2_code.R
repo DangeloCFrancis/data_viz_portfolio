@@ -19,7 +19,7 @@
 
 # load packages 
 
-pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest)
+pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest, sf)
 
 
 # 1. Get webpage ----------------------------------------------------------
@@ -67,25 +67,17 @@ japan_cities <-
   candidate_data[is_city_table][[1]]
 
 
+# 4. Get Japanese Railroad, National, and Municipal Geospatial Data ----------
 
-
-# Old Code (To Be Replaced) -----------------------------------------------
-
-
-
-japan <- 
+japan_boundaries <- 
   gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures)
 
-# load rail data in
-
 japan_rail <- 
-  read_sf("data/Japan_railroads.geojson") |> # read in railroad map
-  clean_names() |>
+  sf::read_sf("data/Japan_railroads.geojson") |> # read in railroad map
+  janitor::clean_names() |>
   rename(rail_type = exs_descri) |>
   rename(func = fco_descri) |>
   filter(func != "Unknown")
-
-# load in major city data 
 
 japan_cities <-
   read_sf("data/cities.geojson") |>
@@ -93,6 +85,7 @@ japan_cities <-
   rename(country = ctry) |> 
   filter(country == "Japan" & pop > 2500000)
 
+# Old Code (To Be Replaced) -----------------------------------------------
 
 
 # load 2019 GDP in, rename columns for data join and obs to match geodata 
