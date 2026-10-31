@@ -19,13 +19,19 @@ warning: false
 
 # core packages
 
-pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, wbstats)
 
+pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, wbstats, cowplot)
+
+# library(tidyverse)
+# library(tidymodels)
+# library(httr2) 
+# library(wbstats)
+# library(cowplot)
 
 # visualization packages
 
 pacman::p_load(patchwork, tigris, sf, rgeoboundaries, ggrepel, ggthemes, crsuggest, ggarchery,
-               labelled, gt)
+               labelled, gt, codebookr, tmap)
 
 # library(patchwork) # easy combine plots
 # library(tigris) # direct download of shape files from US Census 
@@ -37,11 +43,11 @@ pacman::p_load(patchwork, tigris, sf, rgeoboundaries, ggrepel, ggthemes, crsugge
 # library(ggarchery) # install.packages("ggarchery") for easy arrows
 # library(labelled) # for descriptive variable labels
 # library(gt) # for presentation tables 
-
+# library(tmap) # expanded design of geospatial visualizations
 
 options(scipen = 999)
 
-theme_set(theme_clean())
+theme_set(cowplot::theme_cowplot())
 
 ```
 

@@ -1,6 +1,6 @@
 # Broadband Internet Visualization
 
-source("save_visualizations.R")
+source("scripts/save_visualizations.R")
 
 # core packages
 
@@ -21,8 +21,9 @@ wbindicator_options <- wbstats::wb_indicators() # download and browse through av
 
 broadband_data <- 
   wbstats::wb_data(
-  indicator = c("IT.NET.BBND.P2",
-                "BX.KLT.DINV.CD.WD"), 
+  indicator = c("IT.NET.BBND.P2", # broadband connectivity
+                "BX.KLT.DINV.CD.WD" # Foreign Direct Investment Net Inflows
+                ), 
   country = c("Haiti", "Dominican Republic"))
 
 broadband_data_scoped <-

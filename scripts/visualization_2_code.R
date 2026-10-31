@@ -19,7 +19,7 @@
 
 # load packages 
 
-pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest, sf)
+pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest, sf, rnaturalearth)
 
 
 # 1. Get webpage ----------------------------------------------------------
@@ -70,7 +70,10 @@ japan_cities <-
 # 4. Get Japanese Railroad, National, and Municipal Geospatial Data ----------
 
 japan_boundaries <- 
-  gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures)
+  # gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures) - UPDATE 10/30/2026 - rgeoboundaries throwing error - using rnaturalearth package now
+  rnaturalearth::ne_states(
+    country = "Japan"
+  )
 
 japan_rail <- 
   sf::read_sf("data/Japan_railroads.geojson") |> # read in railroad map
@@ -81,9 +84,11 @@ japan_rail <-
 
 japan_cities <-
   read_sf("data/cities.geojson") |>
-  clean_names() |>
+  janitor::clean_names() |>
   rename(country = ctry) |> 
   filter(country == "Japan" & pop > 2500000)
+
+tmap::qtm(japan_boundaries)
 
 # Old Code (To Be Replaced) -----------------------------------------------
 
