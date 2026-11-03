@@ -96,112 +96,12 @@ The purpose behind this visualization is to emphasis how railroad investment con
 #| warning: false
 #| include: false
 
+source("visualization_2_code.R")
 
-# load japan geofile in 
-
-japan <- 
-  gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures)
-
-# load rail data in
-
-japan_rail <- 
-  read_sf("data/Japan_railroads.geojson") |> # read in railroad map
-  clean_names() |>
-  rename(rail_type = exs_descri) |>
-  rename(func = fco_descri) |>
-  filter(func != "Unknown")
-
-# load in major city data 
-
-japan_cities <-
-  read_sf("data/cities.geojson") |>
-  clean_names() |>
-  rename(country = ctry) |> 
-  filter(country == "Japan" & pop > 2500000)
-  
-
-
-# load 2019 GDP in, rename columns for data join and obs to match geodata 
-
-japan_gdp2019 <- 
-  read_excel("data/Japanese Prefectures by GDP - 2019.xlsx") |>
-  clean_names() # using janitor package
-  
-japan_gdp2019 <-
-  japan_gdp2019 |>
-  rename(gdp_yen = x2019_gdp_in_millions_of_jp) |>
-  rename(gdp_usd = x2019_gdp_in_millions_of_us) |>
-  rename(shapeName = prefecture) |>
-  rename(gdp_share = share_of_japan_gdp_percent) |>
-  mutate(shapeName = case_when(
-    shapeName == "Aichi" ~ "Aichi Prefecture", 
-    shapeName =="Ehime" ~ "Ehime Prefecture",
-    shapeName == "Fukui" ~ "Fukui Prefecture",
-    shapeName == "Fukuoka" ~ "Fukuoka Prefecture",
-    shapeName ==  "Gifu" ~ "Gifu Prefecture",
-    shapeName ==  "Hyogo" ~ "Hyogo Prefecture",
-    shapeName ==  "Ishikawa" ~ "Ishikawa Prefecture",
-    shapeName ==  "Kagawa" ~ "Kagawa Prefecture",
-    shapeName ==  "Kagoshima" ~ "Kagoshima Prefecture",
-    shapeName ==  "Kochi" ~ "Kochi Prefecture",
-    shapeName ==  "Kyoto" ~ "Kyoto Prefecture",
-    shapeName ==  "Mie" ~ "Mie Prefecture",
-    shapeName ==  "Miyazaki" ~ "Miyazaki Prefecture",
-    shapeName ==  "Nagasaki" ~ "Nagasaki Prefecture",
-    shapeName ==  "Nara" ~ "Nara Prefecture",
-    shapeName ==  "Okayama" ~ "Okayama Prefecture",
-    shapeName ==  "Okinawa" ~ "Okinawa Prefecture",
-    shapeName ==  "Osaka" ~ "Osaka Prefecture",
-    shapeName ==  "Saga" ~ "Saga Prefecture",
-    shapeName ==  "Tokushima" ~ "Tokushima Prefecture",
-    shapeName ==  "Tottori" ~ "Tottori Prefecture",
-    shapeName ==  "Wakayama" ~ "Wakayama Prefecture",
-    .default = as.character(shapeName)
-  ))
-  
-
-# combine gdp with geodata - should have 47 obs for each data frame
-
-japan_gdpjoin <- 
-  full_join(japan_gdp2019, japan, by = join_by("shapeName"))|>
-   st_as_sf()
-
-japan_plot <- 
-  filter(.data = japan_rail, rail_type == "Operational") |>
-  ggplot() + 
-  geom_sf(data = japan_gdpjoin, aes(fill = as.numeric(gdp_share))) +
-  scale_fill_gradient(name = "Percent of GDP Share (2019)",
-                      low = "#FFFFF0",
-                      high = "#BC002D") + 
-  geom_sf(data = japan_rail,linewidth = .1, color = "steelblue") +
-  geom_sf(data = japan_cities) + 
-  geom_label_repel(data = japan_cities, 
-                   aes(label = name, geometry = geometry), 
-                   stat = "sf_coordinates", 
-                   label.size = .15, 
-                   box.padding = .15, 
-                   label.padding = .15, 
-                   min.segment.length = 2) + # use this for sf label overlaps 
-  labs(
-    title = str_wrap("Provincial GDP Share and Railroad Infrastructure in Japan go hand-in-hand"),
-    subtitle = str_wrap("Railroad infrastrcutre in Japan serves the major population centers and ports of trade in Japan"),
-    caption = str_wrap("Source: 2020 National Accounts, Economic and Social Research Institute of Japan; \n geoBoundaries R package; IMB GIS, Cities ; ArcGIS Hub, Japan Railroads"
-    )
-  ) + 
-  theme_void() + 
-  theme(
-    plot.margin = margin(t = 2, r = 2, b = 2, l = 2, unit = "pt")
-  )
-
-japan_plot
-
-ggsave("japan_plot.png", height = 8.5, width = 11) 
-
-ggsave("japan_plot.pdf", height = 8.5, width = 11) 
 
 ```
 
-![Plot of Japanese Rail and GDP by Region](japan_plot.png)
+![Plot of Japanese Rail and GDP by Region](visualizations/japan_plot_v2.png)
 
 \pagebreak
 
