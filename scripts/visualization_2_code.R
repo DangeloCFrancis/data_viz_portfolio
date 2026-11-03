@@ -19,8 +19,9 @@
 
 # load packages 
 
-pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest, sf, rnaturalearth)
+pacman::p_load(tidyverse, tidymodels, httr2, jsonlite, rgeoboundaries, rvest, sf, tmap, rnaturalearth)
 
+source("scripts/save_visualizations.R")
 
 # 1. Get webpage ----------------------------------------------------------
 
@@ -73,7 +74,10 @@ japan_boundaries <-
   # gb_adm1("japan") # get lvl1 adm map of Japan (~47 prefectures) - UPDATE 10/30/2026 - rgeoboundaries throwing error - using rnaturalearth package now
   rnaturalearth::ne_states(
     country = "Japan"
-  )
+  ) |>
+  rename(shapeName = name)
+
+crsuggest::suggest_crs(japan_boundaries) # get best CRS (3094)
 
 japan_rail <- 
   sf::read_sf("data/Japan_railroads.geojson") |> # read in railroad map
@@ -88,7 +92,7 @@ japan_cities <-
   rename(country = ctry) |> 
   filter(country == "Japan" & pop > 2500000)
 
-tmap::qtm(japan_boundaries)
+# tmap::qtm(japan_boundaries) to test boundaries
 
 # Old Code (To Be Replaced) -----------------------------------------------
 
@@ -96,47 +100,60 @@ tmap::qtm(japan_boundaries)
 # load 2019 GDP in, rename columns for data join and obs to match geodata 
 
 japan_gdp2019 <- 
-  read_excel("data/Japanese Prefectures by GDP - 2019.xlsx") |>
-  clean_names() # using janitor package
+  openxlsx2::read_xlsx("data/Japanese Prefectures by GDP - 2019.xlsx") |>
+  janitor::clean_names()
 
 japan_gdp2019 <-
   japan_gdp2019 |>
-  rename(gdp_yen = x2019_gdp_in_millions_of_jp) |>
-  rename(gdp_usd = x2019_gdp_in_millions_of_us) |>
-  rename(shapeName = prefecture) |>
-  rename(gdp_share = share_of_japan_gdp_percent) |>
-  mutate(shapeName = case_when(
-    shapeName == "Aichi" ~ "Aichi Prefecture", 
-    shapeName =="Ehime" ~ "Ehime Prefecture",
-    shapeName == "Fukui" ~ "Fukui Prefecture",
-    shapeName == "Fukuoka" ~ "Fukuoka Prefecture",
-    shapeName ==  "Gifu" ~ "Gifu Prefecture",
-    shapeName ==  "Hyogo" ~ "Hyogo Prefecture",
-    shapeName ==  "Ishikawa" ~ "Ishikawa Prefecture",
-    shapeName ==  "Kagawa" ~ "Kagawa Prefecture",
-    shapeName ==  "Kagoshima" ~ "Kagoshima Prefecture",
-    shapeName ==  "Kochi" ~ "Kochi Prefecture",
-    shapeName ==  "Kyoto" ~ "Kyoto Prefecture",
-    shapeName ==  "Mie" ~ "Mie Prefecture",
-    shapeName ==  "Miyazaki" ~ "Miyazaki Prefecture",
-    shapeName ==  "Nagasaki" ~ "Nagasaki Prefecture",
-    shapeName ==  "Nara" ~ "Nara Prefecture",
-    shapeName ==  "Okayama" ~ "Okayama Prefecture",
-    shapeName ==  "Okinawa" ~ "Okinawa Prefecture",
-    shapeName ==  "Osaka" ~ "Osaka Prefecture",
-    shapeName ==  "Saga" ~ "Saga Prefecture",
-    shapeName ==  "Tokushima" ~ "Tokushima Prefecture",
-    shapeName ==  "Tottori" ~ "Tottori Prefecture",
-    shapeName ==  "Wakayama" ~ "Wakayama Prefecture",
-    .default = as.character(shapeName)
-  ))
+  rename(gdp_yen = x2019_gdp_in_millions_of_jp,
+         gdp_usd = x2019_gdp_in_millions_of_us,
+         shapeName = prefecture,
+         gdp_share = share_of_japan_gdp_percent) |>
+  mutate(gdp_share = as.numeric(gdp_share))
 
 
 # combine gdp with geodata - should have 47 obs for each data frame
 
 japan_gdpjoin <- 
-  full_join(japan_gdp2019, japan, by = join_by("shapeName"))|>
+  fuzzyjoin::stringdist_full_join(japan_gdp2019, japan_boundaries, by = join_by("shapeName"))|> # using fuzzyjoin package because boundaries data uses pronounciation symbols
   st_as_sf()
+
+tmap_plot <-
+  tmap::tm_shape(japan_gdpjoin, crs = 3094) +
+  tmap::tm_polygons(fill = "gdp_share",
+                    fill.scale = tm_scale_continuous(
+                      values = c("#FFFFF0","#BC002D")
+                    ),
+                    fill.legend = tm_legend(
+                      title = "Percent of GDP Share (2019)",
+                      position = tm_pos_in("right", "bottom"),
+                      orientation = "landscape")) +
+  tmap::tm_shape(japan_cities) + # must declare a new tm_shape if using separate datasets
+  tmap::tm_symbols(
+    size = .5,
+    fill = "black"
+  ) +
+  tmap::tm_labels(
+    "name",
+    options = opt_tm_labels(
+      point.label = TRUE
+    )
+  ) +
+  tmap::tm_shape(japan_rail) +
+  tmap::tm_lines(col = "blue",
+                 lwd = 0.1) +
+  tm_title("Geographic Distribution of GDP and Railroad Infrastructure in Japan") +
+  tm_title_in(str_wrap("Economic output is concentrated in major metropolitan prefectures served by extensive transportation networks.")) +
+  tm_credits("Source: 2020 National Accounts, Economic and Social Research Institute of Japan; \n geoBoundaries R package; IMB GIS, Cities ; ArcGIS Hub, Japan Railroads")
+
+tmap_save(
+  tmap_plot,
+  filename = "visualizations/japan_railroad_gdp_tmap.png",
+  width = 10,
+  height = 6,
+  dpi = 600
+)
+
 
 japan_plot <- 
   filter(.data = japan_rail, rail_type == "Operational") |>
@@ -145,25 +162,21 @@ japan_plot <-
   scale_fill_gradient(name = "Percent of GDP Share (2019)",
                       low = "#FFFFF0",
                       high = "#BC002D") + 
-  geom_sf(data = japan_rail,linewidth = .1, color = "steelblue") +
+  geom_sf(data = filter(japan_rail, rail_type == "Operational"),linewidth = .1, color = "steelblue") +
   geom_sf(data = japan_cities) + 
-  geom_label_repel(data = japan_cities, 
+  ggrepel::geom_label_repel(data = japan_cities, 
                    aes(label = name, geometry = geometry), 
                    stat = "sf_coordinates", 
                    label.size = .15, 
                    box.padding = .15, 
                    label.padding = .15, 
                    min.segment.length = 2) + # use this for sf label overlaps 
-  theme(
-    panel.background = element_blank(),
-    axis.text = element_blank(),
-    axis.ticks = element_blank(),
-    axis.title.x = element_blank(),
-    axis.title.y = element_blank()
-  ) + 
   labs(
-    title = "The Relationship between GDP Share and Railroad Infrastructure in Japan",
-    subtitle = "A Prefecture's railroad density can serve as an indicator for national GDP contributions",
+    title = "Geographic Distribution of GDP and Railroad Infrastructure in Japan",
+    subtitle = "Economic output is concentrated in major metropolitan prefectures served by extensive transportation networks.",
     caption = str_wrap("Source: 2020 National Accounts, Economic and Social Research Institute of Japan; \n geoBoundaries R package; IMB GIS, Cities ; ArcGIS Hub, Japan Railroads"
     )
-  )
+  ) +
+  cowplot::theme_map()
+
+save_my_plot(japan_plot, "japan_plot_v2")
